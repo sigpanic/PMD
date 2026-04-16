@@ -84,13 +84,13 @@ const selectOption = (optionId: string) => {
 
 const submitAnswer = () => {
   if (selectedOption.value) {
-    testStore.submitAnswer(selectedOption.value);
+    const isCompleted = testStore.submitAnswer(selectedOption.value);
     selectedOption.value = null;
     
-    if (testStore.isLastQuestion) {
+    if (isCompleted) {
       // 显示蒸馏动画
       showDistillation.value = true;
-      // 2秒后完成测试
+      // 2 秒后完成测试
       setTimeout(() => {
         testStore.completeTest();
         router.push('/result');

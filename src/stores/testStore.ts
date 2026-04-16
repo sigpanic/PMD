@@ -89,11 +89,18 @@ export const useTestStore = defineStore('test', {
       this.answers[currentQuestion.id] = optionId;
       this.testEngine.submitAnswer(currentQuestion.id, optionId);
 
-      if (this.isLastQuestion) {
-        this.completeTest();
-      } else {
-        this.currentQuestionIndex++;
+      // 先移动到下一题
+      this.currentQuestionIndex++;
+
+      // 检查是否还有下一题
+      const theme = themeManager.getTheme(this.currentThemeId);
+      if (!theme || this.currentQuestionIndex >= theme.questions.length) {
+        // 没有下一题了，返回 true 表示应该完成测试
+        return true;
       }
+      
+      // 还有下一题，返回 false
+      return false;
     },
 
     completeTest() {
