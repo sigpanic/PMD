@@ -151,6 +151,7 @@ const currentIndex = ref(0);
 const isAnimating = ref(false);
 let touchStartX = 0;
 let touchEndX = 0;
+let isSwiping = false;
 
 const allThemes = computed(() => testStore.allThemes);
 
@@ -199,17 +200,24 @@ const handleWheel = (e: WheelEvent) => {
 
 const handleTouchStart = (e: TouchEvent) => {
   touchStartX = e.touches[0].clientX;
+  isSwiping = false;
 };
 
 const handleTouchMove = (e: TouchEvent) => {
   touchEndX = e.touches[0].clientX;
+  const diff = touchStartX - touchEndX;
+  if (Math.abs(diff) > 10) {
+    isSwiping = true;
+  }
 };
 
 const handleTouchEnd = () => {
   const diff = touchStartX - touchEndX;
-  if (Math.abs(diff) > 50) {
+  if (Math.abs(diff) > 50 && isSwiping) {
     diff > 0 ? nextSlide() : prevSlide();
+    return;
   }
+  isSwiping = false;
 };
 
 const getPrevIndex = () => (currentIndex.value - 1 + displayThemes.value.length) % displayThemes.value.length;
@@ -288,8 +296,8 @@ const startTestWithTheme = (theme: any, event?: Event) => {
   if (event) event.stopPropagation();
   if (theme.id === 'soon') return;
   
-  // Get the clicked card element for animation
-  const cardEl = document.querySelector('.carousel-item.active');
+  const cardEl = document.querySelector('.carousel-item.active') as HTMLElement;
+  
   if (cardEl) {
     cardEl.classList.add('expanding');
     
@@ -297,7 +305,7 @@ const startTestWithTheme = (theme: any, event?: Event) => {
       testStore.setTheme(theme.id);
       testStore.startTest();
       router.push('/test');
-    }, 800);
+    }, 900);
   } else {
     testStore.setTheme(theme.id);
     testStore.startTest();
@@ -388,10 +396,17 @@ const startTestWithTheme = (theme: any, event?: Event) => {
   position: absolute;
   width: 340px;
   height: 400px;
-  /* NO margins - use only positioning */
   transition: all 0.65s cubic-bezier(0.23, 1, 0.32, 1);
   cursor: pointer;
   transform-style: preserve-3d;
+}
+
+/* Transparent hit area to cover rotated corners */
+.carousel-item::before {
+  content: '';
+  position: absolute;
+  inset: -40px;
+  z-index: 1;
 }
 
 .carousel-item:hover:not(.active) {
@@ -400,8 +415,7 @@ const startTestWithTheme = (theme: any, event?: Event) => {
 }
 
 .carousel-item.expanding {
-  transition: all 1s cubic-bezier(0.68, -0.15, 0.27, 1.25);
-  /* Keep same centering method during expansion */
+  transition: all 0.9s cubic-bezier(0.68, -0.15, 0.27, 1.25);
   transform: translateX(-50%) translateY(-50%) scale(1.2) rotateY(180deg) !important;
   opacity: 0 !important;
   z-index: 100 !important;
@@ -857,7 +871,7 @@ const startTestWithTheme = (theme: any, event?: Event) => {
 
   .carousel-scene {
     height: 450px;
-    padding: 0 20px;
+    padding: 0;
   }
 
   .carousel-viewport {
@@ -865,14 +879,23 @@ const startTestWithTheme = (theme: any, event?: Event) => {
   }
 
   .carousel-item {
-    width: calc(100vw - 56px);
+    width: calc(100vw - 40px);
     max-width: 330px;
     height: 380px;
-    transform: none !important;
-    opacity: 1 !important;
-    filter: blur(0px) !important;
-    left: 50% !important;
-    top: 50% !important;
+    transform: translateX(-50%) translateY(-50%);
+    opacity: 1;
+    filter: blur(0px);
+    left: 50%;
+    top: 50%;
+    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  .carousel-item.expanding {
+    transition: all 0.9s cubic-bezier(0.68, -0.15, 0.27, 1.25);
+    transform: translateX(-50%) translateY(-50%) scale(1.2) rotateY(180deg) !important;
+    opacity: 0 !important;
+    z-index: 100 !important;
+    filter: blur(20px) !important;
   }
 
   .card-content {

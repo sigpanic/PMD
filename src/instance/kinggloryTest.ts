@@ -282,7 +282,7 @@ export const kinggloryTest: TestConfig = {
     {
       id: 'unearned',
       name: '不牢而获',
-      description: '你对系统机制的理解已经到了不要脸的程度。别人研究连招，你研究怎么把自己伪装成低风险废物，然后美美躺赢。上分对你来说不是竞技，是钻漏洞。',
+      description: '磊哥的关门弟子，鸡爪流，功德流，顺手拈来。你对系统机制的理解已经到了不要脸的程度。别人研究连招，你研究怎么把自己伪装成低风险废物，然后美美躺赢。上分对你来说不是竞技，是钻漏洞。',
       meme: '我送故我赢',
       template: { teamwork: 1.1, resilience: 1.2, elo_attitude: 2.1, hero_flexibility: 2.0, chat_behavior: 1.2, competitive_motivation: 2.9, mechanism_exploit: 3.0, blame_tendency: 1.5, skill_pursuit: 1.2 },
       constraints: [
@@ -305,7 +305,7 @@ export const kinggloryTest: TestConfig = {
     {
       id: 'surrender',
       name: '右上角福袋',
-      description: '你的手指和投降按钮之间大概只差一个经济差提示。你不是不想赢，你只是比谁都更早接受“这把寄了”的现实。队友还在做梦，你已经开始规划下一把。',
+      description: '当队友还在发 稳住我们能赢 的时候，眼看六分钟已到，你在右上角发起了全民福袋，希望能有三个人抢福袋。你的手指和投降按钮之间大概只差一个经济差提示。你不是不想赢，你只是比谁都更早接受“这把寄了”的现实。队友还在做梦，你已经开始规划下一把。',
       meme: '点了吧，活着挺累的',
       template: { teamwork: 1.0, resilience: 1.0, elo_attitude: 1.6, hero_flexibility: 1.5, chat_behavior: 2.4, competitive_motivation: 1.1, mechanism_exploit: 1.0, blame_tendency: 1.7, skill_pursuit: 1.0 },
       constraints: [

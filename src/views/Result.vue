@@ -218,7 +218,15 @@ const initRadarChart = () => {
     });
 
     const option = {
-      tooltip: {},
+      tooltip: {
+        formatter: (params: any) => {
+          const val = params.value;
+          if (!val || !Array.isArray(val)) return '';
+          return indicator.map((ind: any, i: number) => 
+            `${ind.name}: ${Number(val[i]).toFixed(1)}`
+          ).join('<br/>');
+        }
+      },
       radar: {
         indicator: indicator,
         shape: 'polygon',

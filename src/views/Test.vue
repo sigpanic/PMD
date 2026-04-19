@@ -106,78 +106,67 @@
       </div>
     </transition>
 
-    <!-- Distillation Animation Overlay -->
-    <transition name="distill-fade">
-      <div v-if="showDistillation" class="distill-overlay">
-        <div class="distill-content">
-          <!-- Flask Animation -->
-          <div class="flask-wrapper">
-            <div class="flask-neck"></div>
-            <div class="flask-body">
-              <div class="liquid-fill">
-                <div class="wave-effect"></div>
-              </div>
-              
-              <!-- Bubbles -->
-              <div class="bubbles-container">
-                <div 
-                  v-for="n in 14" 
-                  :key="'bub-' + n"
-                  class="bubble-particle"
-                  :style="{ 
-                    left: `${Math.random() * 75}%`,
-                    animationDelay: `${Math.random() * 2}s`,
-                    animationDuration: `${1.4 + Math.random() * 0.8}s`
-                  }"
-                ></div>
-              </div>
-            </div>
-            
-            <!-- Steam Particles -->
-            <div class="steam-container">
-              <div 
-                v-for="n in 7" 
-                :key="'stm-' + n"
-                class="steam-particle"
-                :style="{ 
-                  left: `${15 + Math.random() * 70}%`,
-                  animationDelay: `${Math.random() * 2.5}s`
-                }"
-              ></div>
-            </div>
-          </div>
-          
-          <h3 class="distill-heading">正在蒸馏你的人格...</h3>
-          <p class="distill-subtext">提取核心特征 · 分析维度分布 · 匹配人格模板</p>
-          
-          <!-- Step Indicators -->
-          <div class="step-indicators">
-            <div 
-              v-for="(step, i) in distillSteps" 
-              :key="i"
-              class="step-item"
-              :class="{ active: currentStep >= i, completed: currentStep > i }"
-            >
-              <span class="step-emoji">{{ step.icon }}</span>
-              <span class="step-name">{{ step.label }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </transition>
-
     <!-- Loading State -->
     <div v-if="!currentQuestion && !showDistillation" class="loading-view">
       <div class="spinner-ring"></div>
       <p>准备中...</p>
     </div>
+
+    <!-- Distillation Animation Overlay (teleported to body for proper centering) -->
+    <Teleport to="body">
+      <transition name="distill-fade">
+        <div v-if="showDistillation" class="distill-overlay">
+          <div class="distill-content">
+            <div class="flask-wrapper">
+              <div ref="liquidChartRef" class="liquid-chart"></div>
+              
+              <svg class="flask-overlay-svg" viewBox="0 0 160 220" xmlns="http://www.w3.org/2000/svg">
+                <path 
+                  d="M62,8 L62,60 L20,170 Q16,185 30,195 L130,195 Q144,185 140,170 L98,60 L98,8 Z"
+                  fill="rgba(240, 248, 255, 0.04)"
+                  stroke="rgba(199, 210, 254, 0.3)"
+                  stroke-width="0.6"
+                  stroke-linejoin="round"
+                  class="flask-outline"
+                />
+                <ellipse cx="80" cy="8" rx="22" ry="3" fill="none" stroke="rgba(199, 210, 254, 0.3)" stroke-width="0.6" />
+                <path d="M64,12 L64,54 L30,150" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1" stroke-linecap="round" />
+              </svg>
+              
+              <div class="bubbles-container">
+                <div v-for="n in 18" :key="'bub-' + n" class="bubble-particle"
+                  :style="{ left: `${15 + Math.random() * 70}%`, animationDelay: `${Math.random() * 2}s`, animationDuration: `${0.8 + Math.random() * 1}s` }"></div>
+              </div>
+              
+              <div class="steam-container">
+                <div v-for="n in 10" :key="'stm-' + n" class="steam-particle"
+                  :style="{ left: `${25 + Math.random() * 50}%`, animationDelay: `${Math.random() * 2.5}s`, width: `${4 + Math.random() * 4}px`, height: `${4 + Math.random() * 4}px` }"></div>
+              </div>
+            </div>
+            
+            <h3 class="distill-heading">正在蒸馏你的人格...</h3>
+            <p class="distill-subtext">提取核心特征 · 分析维度分布 · 匹配人格模板</p>
+            
+            <div class="step-indicators">
+              <div v-for="(step, i) in distillSteps" :key="i" class="step-item"
+                :class="{ active: currentStep >= i, completed: currentStep > i }">
+                <span class="step-emoji">{{ step.icon }}</span>
+                <span class="step-name">{{ step.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useTestStore } from '../stores/testStore';
+import * as echarts from 'echarts';
+import 'echarts-liquidfill';
 
 const router = useRouter();
 const testStore = useTestStore();
@@ -185,6 +174,8 @@ const testStore = useTestStore();
 const selectedOption = ref<string | null>(null);
 const showDistillation = ref(false);
 const currentStep = ref(0);
+const liquidChartRef = ref<HTMLElement | null>(null);
+let liquidChart: echarts.ECharts | null = null;
 
 const currentQuestion = computed(() => testStore.currentQuestion);
 const currentQuestionIndex = computed(() => testStore.currentQuestionIndex);
@@ -205,9 +196,102 @@ const distillSteps = [
 
 let stepTimer: ReturnType<typeof setInterval>;
 
+const initLiquidChart = () => {
+  if (!liquidChartRef.value) return;
+  
+  if (liquidChart) {
+    liquidChart.dispose();
+    liquidChart = null;
+  }
+  
+  liquidChart = echarts.init(liquidChartRef.value);
+  
+  const option = {
+    series: [{
+      type: 'liquidFill',
+      radius: '78%',
+      center: ['50%', '50%'],
+      data: [0, 0, 0, 0],
+      amplitude: 20,
+      waveLength: '90%',
+      phase: 0,
+      period: 1500,
+      direction: 'right',
+      shape: 'path://M62,18 L62,58 L18,172 Q14,187 30,197 L130,197 Q146,187 142,172 L98,58 L98,18 Z',
+      color: [
+        {
+          type: 'linear',
+          x: 0, y: 1, x2: 0, y2: 0,
+          colorStops: [
+            { offset: 0, color: 'rgba(37, 99, 235, 0.7)' },
+            { offset: 0.4, color: 'rgba(14, 165, 233, 0.55)' },
+            { offset: 0.8, color: 'rgba(124, 58, 237, 0.5)' },
+            { offset: 1, color: 'rgba(168, 85, 247, 0.55)' }
+          ]
+        },
+        {
+          type: 'linear',
+          x: 0, y: 1, x2: 0, y2: 0,
+          colorStops: [
+            { offset: 0, color: 'rgba(14, 165, 233, 0.4)' },
+            { offset: 1, color: 'rgba(139, 92, 246, 0.35)' }
+          ]
+        },
+        'rgba(59, 130, 246, 0.3)',
+        'rgba(167, 139, 250, 0.2)'
+      ],
+      backgroundStyle: {
+        color: 'transparent'
+      },
+      label: {
+        show: false
+      },
+      outline: {
+        show: false
+      },
+      itemStyle: {
+        shadowBlur: 25,
+        shadowColor: 'rgba(14, 165, 233, 0.4)'
+      }
+    }]
+  };
+  
+  liquidChart.setOption(option);
+  
+  // Animate liquid filling from 0 to 1 (slower: ~3 seconds)
+  let progress = 0;
+  const animateFill = () => {
+    progress += 0.004;
+    if (progress >= 1) {
+      progress = 1;
+      liquidChart?.setOption({
+        series: [{
+          data: [1, 1, 1, 1]
+        }]
+      });
+    } else {
+      liquidChart?.setOption({
+        series: [{
+          data: [progress, progress, progress]
+        }]
+      });
+      requestAnimationFrame(animateFill);
+    }
+  };
+  
+  requestAnimationFrame(animateFill);
+};
+
 watch(showDistillation, (val) => {
   if (val) {
     currentStep.value = 0;
+    
+    nextTick(() => {
+      setTimeout(() => {
+        initLiquidChart();
+      }, 100);
+    });
+    
     stepTimer = setInterval(() => {
       if (currentStep.value < 2) {
         currentStep.value++;
@@ -216,6 +300,14 @@ watch(showDistillation, (val) => {
   } else {
     clearInterval(stepTimer);
   }
+});
+
+onBeforeUnmount(() => {
+  if (liquidChart) {
+    liquidChart.dispose();
+    liquidChart = null;
+  }
+  clearInterval(stepTimer);
 });
 
 const selectOption = (optionId: string) => {
@@ -292,6 +384,7 @@ onMounted(() => {
   color: #1e293b;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   padding: 2rem;
+  overflow-y: auto;
 }
 
 /* ===== Header ===== */
@@ -592,12 +685,12 @@ onMounted(() => {
 
 /* ===== Transitions - PURE opacity (no movement, will-change for GPU acceleration) ===== */
 .question-transition-enter-active {
-  transition: opacity 1.5s ease-in-out;
+  transition: opacity 1.6s ease-in-out;
   will-change: opacity;
 }
 
 .question-transition-leave-active {
-  transition: opacity 0.5s ease-in-out;
+  transition: opacity 0.4s ease-in-out;
   will-change: opacity;
 }
 
@@ -628,6 +721,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 999;
+  overflow: hidden;
 }
 
 .distill-content {
@@ -638,99 +732,65 @@ onMounted(() => {
 
 .flask-wrapper {
   position: relative;
-  width: 150px;
-  height: 210px;
+  width: 180px;
+  height: 240px;
   margin: 0 auto 2.2rem;
 }
 
-.flask-neck {
+.liquid-chart {
+  width: 180px;
+  height: 240px;
+}
+
+.flask-overlay-svg {
   position: absolute;
-  bottom: 135px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 42px;
-  height: 68px;
-  background: linear-gradient(180deg, #ede9fe 0%, #dbeafe 100%);
-  border-radius: 21px 21px 0 0;
-  border: 2px solid #c7d2fe;
-  border-bottom: none;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
 }
 
-.flask-body {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 105px;
-  height: 145px;
-  background: linear-gradient(180deg, #eff6ff 0%, #ede9fe 100%);
-  border-radius: 52px 52px 22px 22px;
-  border: 2px solid #c7d2fe;
-  overflow: hidden;
-}
-
-.liquid-fill {
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 86px;
-  height: 115px;
-  background: linear-gradient(180deg, rgba(14, 165, 233, 0.55), rgba(139, 92, 246, 0.85));
-  border-radius: 43px 43px 17px 17px;
-  animation: liquid-rise-up 2.3s ease-out forwards;
-  overflow: hidden;
-}
-
-@keyframes liquid-rise-up {
-  0% { height: 0; }
-  72% { height: 108px; }
-  82% { height: 103px; }
-  100% { height: 112px; }
-}
-
-.wave-effect {
-  position: absolute;
-  top: -4px;
-  left: -10%;
-  width: 120%;
-  height: 18px;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.45) 0%, transparent 70%);
-  animation: wave-motion 2s ease-in-out infinite;
-}
-
-@keyframes wave-motion {
-  0%, 100% { transform: translateX(-8%) translateY(0); }
-  50% { transform: translateX(8%) translateY(-2px); }
+.flask-outline {
+  fill: rgba(240, 248, 255, 0.04) !important;
+  stroke: rgba(199, 210, 254, 0.3) !important;
+  stroke-width: 0.6 !important;
 }
 
 .bubbles-container {
   position: absolute;
-  bottom: 8px;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  width: 86px;
-  height: 108px;
+  width: 80px;
+  height: 140px;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .bubble-particle {
   position: absolute;
   bottom: 0;
-  width: 7px;
-  height: 7px;
-  background: rgba(255, 255, 255, 0.75);
+  width: 5px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.7);
   border-radius: 50%;
-  animation: bubble-float 1.9s ease-out infinite;
+  animation: bubble-float 1.5s ease-out infinite;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
 }
 
 @keyframes bubble-float {
   0% {
-    transform: translateY(0) scale(0.5);
+    transform: translateY(0) translateX(0) scale(0.3);
     opacity: 1;
   }
+  30% {
+    transform: translateY(-40px) translateX(3px) scale(0.6);
+    opacity: 0.8;
+  }
   100% {
-    transform: translateY(-105px) scale(1.15);
+    transform: translateY(-120px) translateX(-5px) scale(1.2);
     opacity: 0;
   }
 }
@@ -746,22 +806,25 @@ onMounted(() => {
 
 .steam-particle {
   position: absolute;
-  top: 18px;
+  top: 10px;
   width: 5px;
   height: 5px;
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(148, 163, 184, 0.5);
   border-radius: 50%;
-  filter: blur(2.5px);
-  animation: steam-drift 2.8s ease-out infinite;
+  filter: blur(3px);
+  animation: steam-drift 3s ease-out infinite;
 }
 
 @keyframes steam-drift {
   0% {
-    transform: translateY(0) scale(1);
-    opacity: 0.55;
+    transform: translateY(0) translateX(0) scale(0.8);
+    opacity: 0.6;
+  }
+  40% {
+    opacity: 0.45;
   }
   100% {
-    transform: translateY(-75px) scale(2.3);
+    transform: translateY(-60px) translateX(8px) scale(2.8);
     opacity: 0;
   }
 }
@@ -842,8 +905,11 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 58vh;
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
   gap: 1.8rem;
+  z-index: 10;
 }
 
 .spinner-ring {
