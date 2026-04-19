@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "deploy": "npm run build && npx gh-pages -d dist",
     "test:validate": "node --experimental-strip-types scripts/validate-all.mjs",
@@ -20,6 +21,7 @@
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",
     "gh-pages": "^6.3.0",
+    "typescript": "^6.0.3",
     "vite": "^8.0.4"
   }
 }

@@ -10,6 +10,18 @@ export interface Option {
   id: string;
   text: string;
   scores: Record<string, number>;
+  evidence?: OptionEvidence;
+}
+
+export interface OptionEvidence {
+  supports?: EvidenceRef[];
+  conflicts?: EvidenceRef[];
+}
+
+export interface EvidenceRef {
+  type: string;
+  weight?: number;
+  reason?: string;
 }
 
 // 维度结构
@@ -28,6 +40,16 @@ export interface PersonalityType {
   description: string;
   meme: string;
   template: Record<string, number>;
+  constraints?: DimensionConstraint[];
+}
+
+export interface DimensionConstraint {
+  dimension: string;
+  min?: number;
+  max?: number;
+  weight?: number;
+  hard?: boolean;
+  description?: string;
 }
 
 // 测评结果结构
@@ -69,4 +91,13 @@ export interface TestConfig {
   personalityTypes: PersonalityType[];
   dimensionWeights?: Record<string, number>;
   maxScorePerDimension?: number;
+  acceptanceCases?: AcceptanceCase[];
+}
+
+export interface AcceptanceCase {
+  id: string;
+  label: string;
+  expectedType: string;
+  answers: Record<string, string>;
+  description?: string;
 }

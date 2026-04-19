@@ -4,7 +4,7 @@
  * 用于 CI 自动化验证
  */
 
-import { readdirSync, statSync } from 'fs';
+import { readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -61,14 +61,36 @@ async function validateAll() {
       
       const report = await runner.runLargeScaleTest(maxCombinations);
       
+      if (report.configIssues.length > 0) {
+        console.log(`  配置问题: ${report.configIssues.length}`);
+      }
+
+      if (report.acceptanceChecks?.length) {
+        const passedAcceptance = report.acceptanceChecks.filter(item => item.passed).length;
+        console.log(`  验收案例: ${passedAcceptance}/${report.acceptanceChecks.length}`);
+      }
+
       if (report.isReasonable) {
         console.log(`✅ ${file}: 验证通过`);
         successCount++;
-        results.push({ file, success: true, config: testConfig.name, stats: report.statistics });
+        results.push({
+          file,
+          success: true,
+          config: testConfig.name,
+          stats: report.statistics,
+          acceptanceChecks: report.acceptanceChecks?.length || 0
+        });
       } else {
         console.log(`❌ ${file}: 验证不通过`);
         failCount++;
-        results.push({ file, success: false, config: testConfig.name, stats: report.statistics });
+        results.push({
+          file,
+          success: false,
+          config: testConfig.name,
+          stats: report.statistics,
+          acceptanceChecks: report.acceptanceChecks?.length || 0,
+          configIssues: report.configIssues
+        });
       }
       
     } catch (error) {
@@ -90,6 +112,11 @@ async function validateAll() {
     console.log('\n失败的测评:');
     results.filter(r => !r.success).forEach(r => {
       console.log(`  ❌ ${r.file}: ${r.error || r.config}`);
+      if (r.configIssues?.length) {
+        r.configIssues.forEach(issue => {
+          console.log(`     - ${issue}`);
+        });
+      }
     });
     process.exit(1);
   } else {

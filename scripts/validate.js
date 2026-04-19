@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 /**
  * 测评验证 CLI 脚本
+ * 会同时检查：
+ * 1. 分布是否合理
+ * 2. 配置完整性（维度覆盖、evidence、acceptanceCases）
+ * 3. 验收案例是否命中预期人格
  * 
  * 用法：
  *   node --experimental-strip-types scripts/validate.js src/instance/yourThemeTest.ts
@@ -8,7 +12,6 @@
  *   node --experimental-strip-types scripts/validate.js src/instance/yourThemeTest.ts --max-combinations 10000000
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 

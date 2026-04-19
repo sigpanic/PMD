@@ -43,6 +43,12 @@
 1. 设计维度（6-14 个）
 2. 设计人格类型（8-12 种），每种要有差异化特征
 3. 设计题目（10 道左右），**每题必须严格 3 个选项**，不能多不能少
+4. 给每个选项补 `evidence`
+   - `supports`: 这个选项显式支持哪些人格
+   - `conflicts`: 这个选项显式排斥哪些人格
+5. 给每个人格写 1 条 `acceptanceCase`
+   - 用真实用户会走出的答案路径表示
+   - `expectedType` 必须是该人格自身
 4. 保存文件到 `src/instance/yourThemeTest.ts`
 
 **重要约束**：
@@ -50,6 +56,9 @@
 - 每题 **必须恰好 3 个选项**
 - 选项 ID 使用 `'a'`, `'b'`, `'c'`
 - 确保 3 个选项分别指向不同的人格类型特征，保持差异化
+- 每个人格至少要有 3 个显式支持证据（`evidence.supports`）
+- 每个维度至少要在题目里出现 3 次
+- 每个主题必须提供 `acceptanceCases`
 
 ### Step 4: 运行验证测试
 
@@ -59,7 +68,7 @@
 # 大规模枚举测试（验证分布合理性）
 node --experimental-strip-types scripts/validate.js src/instance/yourThemeTest.ts
 
-# 小规模随机测试（验证具体路径的合理性）
+# 小规模随机测试（辅助 spot check）
 node --experimental-strip-types scripts/validate.js src/instance/yourThemeTest.ts --small-scale
 ```
 
@@ -76,19 +85,19 @@ node --experimental-strip-types scripts/validate.js src/instance/yourThemeTest.t
 | 某个类型从未被触发（0%）  | 没有选项能匹配该类型  | 在相关题目中添加指向该类型的选项     |
 | 标准差过大（>8）      | 题目选项偏向某一维度  | 调整选项分数，让维度分布更均衡      |
 
-#### 小规模随机测试 - 人工检查
+#### 验收案例测试 - 必须通过
 
-运行小规模测试后，**你必须检查每一条路径（20 条）的结果是否合理**：
+你必须为每个人格写出一条典型路径，并让验证器自动检查：
 
-1. 人格类型名称与用户答案是否匹配？
-2. 人格描述是否符合用户的选择倾向？
-3. meme 标签是否准确反映了用户特征？
+1. 这条路径是否命中预期人格？
+2. 这条路径的 match percentage 是否至少有基本说服力？
+3. 这条路径是否真的体现了该人格的核心选择逻辑？
 
 **如果不合理**：
 
-- 调整题目选项的维度分数
-- 优化人格模板的维度权重
-- 修改人格类型的描述使其更准确
+- 调整选项 `evidence.supports / conflicts`
+- 调整人格模板和硬约束
+- 重写验收案例，避免写出不真实的“伪典型用户”
 
 **迭代流程**：
 
@@ -106,18 +115,19 @@ node --experimental-strip-types scripts/validate.js src/instance/yourThemeTest.t
 
 | 指标      | 标准               |
 | ------- | ---------------- |
-| **平均值** | 100% ÷ 人格类型数量    |
-| **最小值** | ≥1%（所有类型都必须能被触发） |
-| **最大值** | ≤30%             |
-| **标准差** | ≤8               |
-| **全覆盖** | 100% 类型都能被触发     |
+| **全覆盖** | 100% 类型都能被触发 |
+| **最大值** | ≤25% |
+| **稀有类型** | `<1%` 的人格数量不能超过总人格数的 25% |
+| **标准差** | ≤7 |
+| **案例命中** | 100% `acceptanceCases` 必须命中预期人格 |
 
 ### 测试方法
 
 1. **大规模枚举测试**：生成所有可能的答案组合，统计分布
    - 组合数 ≤ 5,000,000：暴力枚举
    - 组合数 > 5,000,000：智能剪枝抽样（最多 2,000,000 条）
-2. **小规模随机测试**：随机生成 20 条路径，**你必须检查每一条路径的结果是否合理**
+2. **验收案例测试**：逐条验证 `acceptanceCases`
+3. **小规模随机测试**：随机生成 20 条路径，用于人工 spot check
 
 ***
 
@@ -129,7 +139,9 @@ node --experimental-strip-types scripts/validate.js src/instance/yourThemeTest.t
 ✅ 维度全面：覆盖目标领域的核心特征\
 ✅ 问题真实：能反映用户的真实选择倾向\
 ✅ 模板差异化：人格类型之间要有明显区别\
-✅ 接受不完美：允许稀有类型的存在（≥1% 即可）
+✅ 证据显式化：选项要告诉引擎“它支持谁、排斥谁”\
+✅ 案例可验证：每个人格都要有一条能跑通的典型路径\
+✅ 接受不完美：允许少量稀有类型存在，但必须有验收案例支撑
 
 ### 避免陷阱
 
@@ -172,7 +184,8 @@ node --experimental-strip-types scripts/validate.js src/instance/yourThemeTest.t
 1. ✅ 阅读了 `src/protocol/types.ts` 和 `src/instance/programmerTest.ts`
 2. ✅ 生成了完整的 TypeScript 配置文件
 3. ✅ 大规模枚举测试验证通过（所有验收标准满足）
-4. ✅ 小规模随机测试验证通过（20 条路径结果合理）
-5. ✅ 文件已保存到 `src/instance/yourThemeTest.ts`
+4. ✅ `acceptanceCases` 全部命中预期人格
+5. ✅ 小规模随机测试已人工 spot check
+6. ✅ 文件已保存到 `src/instance/yourThemeTest.ts`
 
 **不要在没有通过验证的情况下停止工作！**
