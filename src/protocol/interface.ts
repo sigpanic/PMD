@@ -347,7 +347,7 @@ export class TestProtocol implements TestInterface, ExtensionInterface {
 
       const weight = constraint.weight || 1;
       const severity = Math.min(1, violation / 2);
-      const floor = constraint.hard ? 0.02 : 0.45;
+      const floor = constraint.hard ? 0 : 0.45;
       const penalty = constraint.hard ? severity * 1.35 : severity * 0.45 * weight;
       multiplier *= Math.max(floor, 1 - penalty);
     });

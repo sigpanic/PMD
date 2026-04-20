@@ -299,7 +299,7 @@ export const traeSoloTest: TestConfig = {
           evidence: {
             supports: [
               { type: 'solo_evangelist', weight: 2 },
-              { type: 'solo_evangelist', weight: 1.5 }
+              { type: 'innovation_explorer', weight: 1.5 }
             ],
             conflicts: [{ type: 'conservative_coder', weight: 2 }]
           }
@@ -496,7 +496,7 @@ export const traeSoloTest: TestConfig = {
           evidence: {
             supports: [
               { type: 'innovation_explorer', weight: 2.5 },
-              { type: 'innovation_explorer', weight: 1.5 }
+              { type: 'solo_evangelist', weight: 1.5 }
             ],
             conflicts: [{ type: 'conservative_coder', weight: 2 }]
           }
@@ -643,7 +643,7 @@ export const traeSoloTest: TestConfig = {
           evidence: {
             supports: [
               { type: 'solo_evangelist', weight: 1.5 },
-              { type: 'solo_evangelist', weight: 2 }
+              { type: 'innovation_explorer', weight: 1.8 }
             ],
             conflicts: [{ type: 'conservative_coder', weight: 2 }]
           }
@@ -884,23 +884,23 @@ export const traeSoloTest: TestConfig = {
       description: '"AI？辅助工具而已，别太当真——核心链路必须我自己写。"恭喜您，您测出了这个对AI保持理性克制（甚至有点鄙视）的人格。您不反对使用Trae Solo，但您清楚地知道它的能力边界在哪里——而且那个边界离您很远。核心业务逻辑？坚持手写。复杂算法？自己实现。数据库操作？手写SQL。只有那些重复性、无脑的活儿（生成CRUD、写测试用例、格式化代码）才勉强交给AI凑合一下。嘴上说着"不能把鸡蛋放在一个篮子里"，手上却在关键时刻毫不犹豫地切换回IDE模式手动编码——因为您知道AI生成的代码迟早会出问题（幻觉、降智、死循环，它什么干不出来）。您就像一个开了20年手动挡的老司机——虽然周围人都在开自动挡（AI），但您坚信手动才最靠谱、最有掌控感。说实话，您可能是整个团队里最不容易被AI替代的那个人——因为您从未真正信任过它。',
       meme: '核心链路我自己来',
       template: {
-        solo_dependency: 0.6,
-        prompt_mastery: 1.2,
-        task_decomposition: 1.4,
-        ai_supervision: 2.2,
-        control_desire: 3.0,
-        innovation_spirit: 0.5,
-        efficiency_priority: 0.8,
-        context_engineering: 1.2,
-        risk_tolerance: 0.2,
-        learning_adaptability: 0.9
+        solo_dependency: 0.9,
+        prompt_mastery: 1.4,
+        task_decomposition: 1.7,
+        ai_supervision: 2.4,
+        control_desire: 2.8,
+        innovation_spirit: 0.8,
+        efficiency_priority: 1.1,
+        context_engineering: 1.4,
+        risk_tolerance: 0.6,
+        learning_adaptability: 1.2
       },
       constraints: [
-        { dimension: 'solo_dependency', max: 1.0, hard: true },
-        { dimension: 'control_desire', min: 2.7, hard: true },
-        { dimension: 'risk_tolerance', max: 0.6, hard: true },
-        { dimension: 'innovation_spirit', max: 1.0, hard: true },
-        { dimension: 'efficiency_priority', max: 1.2, weight: 1.3 }
+        { dimension: 'solo_dependency', max: 1.3, weight: 1.5 },
+        { dimension: 'control_desire', min: 2.5, weight: 1.3 },
+        { dimension: 'risk_tolerance', max: 1.0, weight: 1.4 },
+        { dimension: 'innovation_spirit', max: 1.3, weight: 1.2 },
+        { dimension: 'efficiency_priority', max: 1.5, weight: 1.2 }
       ]
     },
     {
@@ -982,26 +982,23 @@ export const traeSoloTest: TestConfig = {
       description: '"工具是为人服务的，不是反过来——所以我该用就用，该手动就手动。"恭喜您，您测出了这个最成熟（或者说最圆滑）的Trae Solo用户人格。您既不完全依赖AI（因为你知道它会降智），也不盲目排斥它（因为免费的不用白不用）；既追求效率（老板要结果），也注重质量（毕竟背锅的是你）；既善于利用新功能（能省事就省事），也懂得坚守基本原则（核心逻辑还是自己写）。您像一个在职场摸爬滚打多年的老油条——知道什么时候该让SOLO模式冲锋陷阵（简单CRUD、原型验证），什么时候该亲自上阵把关关键节点（支付逻辑、数据安全）。嘴上不说大话（"AI也就那样吧"），但您的项目总是按时交付且质量过硬（虽然偶尔也会翻车）。您不需要向任何人证明什么，因为结果已经说明了一切。说实话，您可能是最让老板放心、让同事舒服、让自己满意的那个人——虽然您永远不会成为任何一个极端阵营的代言人（因为站队太累而且容易被打脸）。',
       meme: '中庸之道保平安',
       template: {
-        solo_dependency: 2.0,
-        prompt_mastery: 2.2,
-        task_decomposition: 2.25,
-        ai_supervision: 2.25,
-        control_desire: 2.0,
-        innovation_spirit: 2.0,
-        efficiency_priority: 2.0,
+        solo_dependency: 2.3,
+        prompt_mastery: 2.0,
+        task_decomposition: 2.0,
+        ai_supervision: 2.0,
+        control_desire: 1.8,
+        innovation_spirit: 1.6,
+        efficiency_priority: 2.4,
         context_engineering: 1.9,
-        risk_tolerance: 1.9,
-        learning_adaptability: 2.2
+        risk_tolerance: 2.0,
+        learning_adaptability: 2.0
       },
       constraints: [
-        { dimension: 'solo_dependency', min: 1.98, max: 2.02, weight: 5.0 },
-        { dimension: 'control_desire', min: 1.98, max: 2.02, weight: 5.0 },
-        { dimension: 'efficiency_priority', min: 1.98, max: 2.02, weight: 5.0 },
-        { dimension: 'prompt_mastery', min: 2.1, max: 2.3, weight: 3.0 },
-        { dimension: 'ai_supervision', min: 2.1, max: 2.3, weight: 3.0 },
-        { dimension: 'innovation_spirit', min: 1.98, max: 2.22, weight: 3.0 },
-        { dimension: 'task_decomposition', min: 2.15, max: 2.45, weight: 2.5 },
-        { dimension: 'context_engineering', max: 2.15, weight: 4.0 }
+        { dimension: 'efficiency_priority', min: 2.4, max: 2.4, weight: 3.5 },
+        { dimension: 'control_desire', min: 1.7, max: 1.8, weight: 3.0 },
+        { dimension: 'innovation_spirit', max: 1.55, weight: 2.8 },
+        { dimension: 'solo_dependency', min: 2.29, max: 2.31, weight: 3.0 },
+        { dimension: 'ai_supervision', min: 2.0, max: 2.05, weight: 2.5 }
       ]
     }
   ],
@@ -1076,7 +1073,7 @@ export const traeSoloTest: TestConfig = {
       id: 'case-balanced-practitioner',
       label: '理性平衡的中庸之道践行者',
       expectedType: 'balanced_practitioner',
-      answers: { q1: 'b', q2: 'b', q3: 'b', q4: 'b', q5: 'b', q6: 'b', q7: 'b', q8: 'b', q9: 'c', q10: 'b', q11: 'b', q12: 'b' }
+      answers: { q1: 'b', q2: 'b', q3: 'a', q4: 'b', q5: 'a', q6: 'a', q7: 'a', q8: 'a', q9: 'c', q10: 'b', q11: 'a', q12: 'b' }
     }
   ]
 };
