@@ -60,15 +60,7 @@ async function validateAll() {
       const maxCombinations = totalCombinations <= 5_000_000 ? undefined : 2_000_000;
       
       const report = await runner.runLargeScaleTest(maxCombinations);
-      
-      if (report.configIssues.length > 0) {
-        console.log(`  配置问题: ${report.configIssues.length}`);
-      }
-
-      if (report.acceptanceChecks?.length) {
-        const passedAcceptance = report.acceptanceChecks.filter(item => item.passed).length;
-        console.log(`  验收案例: ${passedAcceptance}/${report.acceptanceChecks.length}`);
-      }
+      runner.printReport(report);
 
       if (report.isReasonable) {
         console.log(`✅ ${file}: 验证通过`);
@@ -89,7 +81,11 @@ async function validateAll() {
           config: testConfig.name,
           stats: report.statistics,
           acceptanceChecks: report.acceptanceChecks?.length || 0,
-          configIssues: report.configIssues
+          configIssues: report.configIssues,
+          distributionFailures: report.distributionFailures,
+          configConstraintIssues: report.configConstraintIssues,
+          failedAcceptance: report.acceptanceChecks?.filter(item => !item.passed) || [],
+          failedPrototypes: report.prototypeChecks?.filter(item => !(item.supportPassed && item.contrastPassed)) || []
         });
       }
       
@@ -111,10 +107,40 @@ async function validateAll() {
   if (failCount > 0) {
     console.log('\n失败的测评:');
     results.filter(r => !r.success).forEach(r => {
-      console.log(`  ❌ ${r.file}: ${r.error || r.config}`);
+      console.log(`\n  ❌ ${r.file}: ${r.error || r.config}`);
       if (r.configIssues?.length) {
+        console.log('    配置完整性问题:');
         r.configIssues.forEach(issue => {
           console.log(`     - ${issue}`);
+        });
+      }
+      if (r.distributionFailures?.length) {
+        console.log('    分布问题:');
+        r.distributionFailures.forEach(f => {
+          console.log(`     - ${f.message}`);
+        });
+      }
+      if (r.configConstraintIssues?.length) {
+        console.log('    配置约束问题:');
+        r.configConstraintIssues.forEach(issue => {
+          console.log(`     - ${issue.message} (期望: ${issue.expected}, 实际: ${issue.actual})`);
+        });
+      }
+      if (r.failedAcceptance?.length) {
+        console.log('    未通过的验收案例:');
+        r.failedAcceptance.forEach(item => {
+          console.log(`     - ${item.label}: 期望 ${item.expectedType} -> 实际 ${item.actualType} (${item.matchPercentage}%)`);
+        });
+      }
+      if (r.failedPrototypes?.length) {
+        console.log('    未通过的原型路径:');
+        r.failedPrototypes.forEach(item => {
+          if (!item.supportPassed) {
+            console.log(`     - ${item.typeName} 支持路径: 命中 ${item.supportPathResult} (${item.supportMatch}%)`);
+          }
+          if (!item.contrastPassed) {
+            console.log(`     - ${item.typeName} 对立路径: 命中 ${item.contrastPathResult}`);
+          }
         });
       }
     });

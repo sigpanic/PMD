@@ -118,7 +118,6 @@ async function main() {
       
       // 返回退出码
       if (!report.isReasonable) {
-        console.log('❌ 验证不通过，请调整测评配置');
         process.exit(1);
       } else {
         console.log('✅ 验证通过');

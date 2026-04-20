@@ -18,11 +18,26 @@ export interface TestStatistics {
   isReasonable: boolean;
 }
 
+export interface DistributionFailureReason {
+  type: 'zero_coverage' | 'max_exceeded' | 'rare_types_excess' | 'std_dev_exceeded';
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface ConfigConstraintIssue {
+  field: string;
+  expected: string;
+  actual: string;
+  message: string;
+}
+
 export interface ValidationReport {
   config: TestConfig;
   distribution: DistributionResult[];
   statistics: TestStatistics;
   configIssues: string[];
+  distributionFailures: DistributionFailureReason[];
+  configConstraintIssues: ConfigConstraintIssue[];
   prototypeChecks: PrototypeCheck[];
   acceptanceChecks: AcceptanceCheck[];
   isReasonable: boolean;
@@ -180,6 +195,8 @@ export class GenericTestRunner {
     const variance = percentages.reduce((sum, p) => sum + Math.pow(p - avgPercentage, 2), 0) / percentages.length;
     const stdDev = Math.sqrt(variance);
     
+    const distributionCheck = this.checkDistributionReasonable(percentages, avgPercentage, distribution);
+
     const statistics: TestStatistics = {
       averagePercentage: avgPercentage,
       minPercentage,
@@ -187,21 +204,25 @@ export class GenericTestRunner {
       stdDev,
       totalCombinations: isSampled ? totalCombinations : total,
       personalityTypesCount: config.personalityTypes.length,
-      isReasonable: this.checkReasonable(percentages, avgPercentage)
+      isReasonable: distributionCheck.reasonable
     };
 
+    const configConstraintIssues = this.validateConfigConstraints(config);
     const prototypeChecks = config.acceptanceCases?.length ? [] : this.runPrototypeChecks(config);
     const acceptanceChecks = this.runAcceptanceChecks(config);
     const prototypesPassed = prototypeChecks.every(item => item.supportPassed && item.contrastPassed);
     const acceptancePassed = acceptanceChecks.every(item => item.passed);
     const configValid = configIssues.length === 0;
-    const isReasonable = statistics.isReasonable && prototypesPassed && acceptancePassed && configValid;
+    const configConstraintsValid = configConstraintIssues.length === 0;
+    const isReasonable = distributionCheck.reasonable && prototypesPassed && acceptancePassed && configValid && configConstraintsValid;
     
     return {
       config,
       distribution,
       statistics,
       configIssues,
+      distributionFailures: distributionCheck.failures,
+      configConstraintIssues,
       prototypeChecks,
       acceptanceChecks,
       isReasonable
@@ -271,35 +292,74 @@ export class GenericTestRunner {
   /**
    * 检查分布是否合理
    */
-  private checkReasonable(percentages: number[], avgPercentage: number): boolean {
-    let zeroValues = 0;
-    let nicheValues = 0;
-    
-    for (const p of percentages) {
-      if (p <= 0) {
-        zeroValues++;
+  private checkDistributionReasonable(
+    percentages: number[],
+    avgPercentage: number,
+    distribution: DistributionResult[]
+  ): { reasonable: boolean; failures: DistributionFailureReason[] } {
+    const failures: DistributionFailureReason[] = [];
+
+    const zeroTypes: { typeId: string; typeName: string; percentage: number }[] = [];
+    const nicheTypes: { typeId: string; typeName: string; percentage: number }[] = [];
+    distribution.forEach(item => {
+      if (item.percentage <= 0) {
+        zeroTypes.push({ typeId: item.typeId, typeName: item.typeName, percentage: item.percentage });
       }
-      if (p < 1) {
-        nicheValues++;
+      if (item.percentage < 1) {
+        nicheTypes.push({ typeId: item.typeId, typeName: item.typeName, percentage: item.percentage });
       }
-    }
-    
-    // 验收标准：
-    // 1. 所有类型都能被触发（无 0%）
-    // 2. 最大值不超过 25%
-    // 3. 允许少量稀有类型，但不能全部挤压到角落
-    // 4. 标准差不超过 7
+    });
+
     const maxPercentage = Math.max(...percentages);
+    const maxType = distribution.find(item => item.percentage === maxPercentage);
+
     const variance = percentages.reduce((sum, p) => sum + Math.pow(p - avgPercentage, 2), 0) / percentages.length;
     const stdDev = Math.sqrt(variance);
+
     const nicheAllowance = Math.max(1, Math.floor(percentages.length * 0.25));
-    
-    const reasonable = zeroValues === 0 &&
-                      maxPercentage <= 25 &&
-                      nicheValues <= nicheAllowance &&
-                      stdDev <= 7;
-    
-    return reasonable;
+
+    if (zeroTypes.length > 0) {
+      failures.push({
+        type: 'zero_coverage',
+        message: `${zeroTypes.length} 个人格类型从未被触发 (0%)，违反了全覆盖标准`,
+        details: {
+          zeroTypes: zeroTypes.map(t => ({ id: t.typeId, name: t.typeName }))
+        }
+      });
+    }
+
+    if (maxPercentage > 25) {
+      failures.push({
+        type: 'max_exceeded',
+        message: `最大占比 ${maxPercentage.toFixed(2)}% (${maxType?.typeName}) 超过 25% 限制`,
+        details: { maxPercentage, maxTypeName: maxType?.typeName }
+      });
+    }
+
+    if (nicheTypes.length > nicheAllowance) {
+      failures.push({
+        type: 'rare_types_excess',
+        message: `稀有类型 (<1%) 有 ${nicheTypes.length} 个，超过允许上限 ${nicheAllowance} 个 (总人格数的 25%)`,
+        details: {
+          nicheCount: nicheTypes.length,
+          allowance: nicheAllowance,
+          nicheTypes: nicheTypes.map(t => ({ id: t.typeId, name: t.typeName, percentage: t.percentage }))
+        }
+      });
+    }
+
+    if (stdDev > 7) {
+      failures.push({
+        type: 'std_dev_exceeded',
+        message: `标准差 ${stdDev.toFixed(2)} 超过限制 7`,
+        details: { stdDev }
+      });
+    }
+
+    return {
+      reasonable: failures.length === 0,
+      failures
+    };
   }
 
   private validateConfigIntegrity(config: TestConfig): string[] {
@@ -377,6 +437,64 @@ export class GenericTestRunner {
     });
 
     return Array.from(new Set(issues));
+  }
+
+  private validateConfigConstraints(config: TestConfig): ConfigConstraintIssue[] {
+    const issues: ConfigConstraintIssue[] = [];
+
+    if (config.dimensions.length < 6 || config.dimensions.length > 14) {
+      issues.push({
+        field: 'dimensions',
+        expected: '6-14 个维度',
+        actual: `${config.dimensions.length} 个维度`,
+        message: `维度数量 ${config.dimensions.length} 不在允许范围 (6-14)`
+      });
+    }
+
+    if (config.personalityTypes.length < 8 || config.personalityTypes.length > 12) {
+      issues.push({
+        field: 'personalityTypes',
+        expected: '8-12 种人格类型',
+        actual: `${config.personalityTypes.length} 种人格类型`,
+        message: `人格类型数量 ${config.personalityTypes.length} 不在允许范围 (8-12)`
+      });
+    }
+
+    if (config.questions.length < 8) {
+      issues.push({
+        field: 'questions',
+        expected: '至少 8 道题目（建议 10 道左右）',
+        actual: `${config.questions.length} 道题目`,
+        message: `题目数量 ${config.questions.length} 偏少，建议 10 道左右`
+      });
+    }
+
+    const expectedOptionIds = ['a', 'b', 'c'];
+    config.questions.forEach(question => {
+      if (question.options.length !== 3) {
+        issues.push({
+          field: `question.${question.id}.options`,
+          expected: '每题恰好 3 个选项',
+          actual: `${question.options.length} 个选项`,
+          message: `题目 ${question.id} 有 ${question.options.length} 个选项，必须恰好 3 个`
+        });
+      }
+
+      const sortedOptionIds = [...question.options].map(opt => opt.id).sort();
+      const idsMatch = sortedOptionIds.length === expectedOptionIds.length &&
+        sortedOptionIds.every((id, idx) => id === expectedOptionIds[idx]);
+
+      if (!idsMatch) {
+        issues.push({
+          field: `question.${question.id}.optionIds`,
+          expected: `选项 ID 应为 '${expectedOptionIds.join("', '")}'`,
+          actual: `实际 ID 为 '${sortedOptionIds.join("', '")}'`,
+          message: `题目 ${question.id} 的选项 ID 不符合规范，应使用 '${expectedOptionIds.join("', '")}'`
+        });
+      }
+    });
+
+    return issues;
   }
 
   private runPrototypeChecks(config: TestConfig): PrototypeCheck[] {
@@ -526,6 +644,86 @@ export class GenericTestRunner {
     }
 
     console.log(`\n是否合理: ${report.isReasonable ? '✅ 通过' : '❌ 不通过'}`);
+
+    if (!report.isReasonable) {
+      console.log('\n' + '⚠️'.repeat(15));
+      console.log('❌ 验证不通过，以下是需要改进的地方:');
+      console.log('⚠️'.repeat(15));
+
+      if (report.distributionFailures.length > 0) {
+        console.log('\n📊 分布问题:');
+        report.distributionFailures.forEach(failure => {
+          console.log(`  ❌ ${failure.message}`);
+          if (failure.type === 'zero_coverage' && failure.details?.zeroTypes) {
+            (failure.details.zeroTypes as Array<{ id: string; name: string }>).forEach(t => {
+              console.log(`     - 人格 ${t.name} (${t.id}): 0% (从未被触发)`);
+            });
+          }
+          if (failure.type === 'rare_types_excess' && failure.details?.nicheTypes) {
+            (failure.details.nicheTypes as Array<{ id: string; name: string; percentage: number }>).forEach(t => {
+              console.log(`     - 人格 ${t.name} (${t.id}): ${t.percentage.toFixed(2)}% (<1% 稀有类型)`);
+            });
+          }
+        });
+      }
+
+      if (report.configConstraintIssues.length > 0) {
+        console.log('\n📐 配置约束问题:');
+        report.configConstraintIssues.forEach(issue => {
+          console.log(`  ❌ ${issue.message}`);
+          console.log(`     期望: ${issue.expected}, 实际: ${issue.actual}`);
+        });
+      }
+
+      if (report.configIssues.length > 0) {
+        console.log('\n🔧 配置完整性问题:');
+        report.configIssues.forEach(issue => {
+          console.log(`  ❌ ${issue}`);
+        });
+      }
+
+      const failedAcceptance = report.acceptanceChecks.filter(item => !item.passed);
+      if (failedAcceptance.length > 0) {
+        console.log('\n🎯 未通过的验收案例:');
+        failedAcceptance.forEach(item => {
+          console.log(`  ❌ ${item.label}: 期望 ${item.expectedType} -> 实际 ${item.actualType} (${item.matchPercentage}%)`);
+        });
+      }
+
+      const failedPrototypes = report.prototypeChecks.filter(item => !(item.supportPassed && item.contrastPassed));
+      if (failedPrototypes.length > 0) {
+        console.log('\n🧪 未通过的原型路径:');
+        failedPrototypes.forEach(item => {
+          if (!item.supportPassed) {
+            console.log(`  ❌ ${item.typeName} 支持路径: 命中 ${item.supportPathResult} (${item.supportMatch}%)，预期 ${item.typeId}`);
+          }
+          if (!item.contrastPassed) {
+            console.log(`  ❌ ${item.typeName} 对立路径: 命中 ${item.contrastPathResult}，预期不命中 ${item.typeId}`);
+          }
+        });
+      }
+
+      console.log('\n💡 改进建议:');
+      if (report.distributionFailures.some(f => f.type === 'zero_coverage')) {
+        console.log('  - 为从未触发的人格类型在相关题目中添加指向该类型的选项 (evidence.supports)');
+      }
+      if (report.distributionFailures.some(f => f.type === 'max_exceeded')) {
+        console.log('  - 降低占比过高人格类型的核心维度分数，增加差异化');
+      }
+      if (report.distributionFailures.some(f => f.type === 'rare_types_excess')) {
+        console.log('  - 提高稀有人格类型的核心维度分数到 2.5-3.0');
+      }
+      if (report.distributionFailures.some(f => f.type === 'std_dev_exceeded')) {
+        console.log('  - 调整选项分数，让维度分布更均衡');
+      }
+      if (report.configConstraintIssues.some(i => i.field.includes('options'))) {
+        console.log('  - 确保每题恰好 3 个选项，ID 使用 a, b, c');
+      }
+      if (failedAcceptance.length > 0) {
+        console.log('  - 调整选项 evidence.supports/conflicts 或重写验收案例');
+      }
+    }
+
     console.log('='.repeat(50) + '\n');
   }
 }
